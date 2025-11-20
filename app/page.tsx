@@ -1,65 +1,330 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState, useMemo } from "react";
+import { TrendingDown, Calendar, Coins } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import Link from "next/link";
+
+import { ChartDataPoint } from "./types";
+import { formatCurrency } from "./utils";
+import {
+  Card,
+  Button,
+  ExpenseModal,
+  TransactionList,
+  Header,
+} from "./components";
+import { useExpenses } from "./hooks/useExpenses";
+
+export default function App() {
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "year">(
+    "week"
+  );
+
+  const {
+    expenses,
+    isModalOpen,
+    setIsModalOpen,
+    isEditing,
+    newAmount,
+    setNewAmount,
+    newCategory,
+    setNewCategory,
+    newNote,
+    setNewNote,
+    newDate,
+    setNewDate,
+    fileInputRef,
+    exportToCSV,
+    handleImport,
+    handleSubmit,
+    deleteExpense,
+    openAddModal,
+    openEditModal,
+  } = useExpenses();
+
+  const chartData: ChartDataPoint[] = useMemo(() => {
+    const now = new Date();
+    let data: ChartDataPoint[] = [];
+
+    const startOfDay = (d: Date): Date =>
+      new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    if (viewMode === "day") {
+      // Show last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dayStr = d.toLocaleDateString("en-US", { weekday: "short" });
+
+        const total = expenses
+          .filter(
+            (e) =>
+              startOfDay(new Date(e.date)).getTime() === startOfDay(d).getTime()
+          )
+          .reduce((sum, e) => sum + e.amount, 0);
+
+        data.push({ name: dayStr, amount: total, fullDate: d });
+      }
+    } else if (viewMode === "week") {
+      // Show last 4 weeks
+      // Simplified: Group by week number implies complex logic, let's do simple 7-day buckets for visual ease or just last 4 weeks relative
+      // Actually, let's just show the last 4 weeks labeled by start date
+      for (let i = 3; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i * 7);
+        // Get Start of week
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        const monday = new Date(d.setDate(diff));
+        const mondayStr = monday.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+
+        const nextMonday = new Date(monday);
+        nextMonday.setDate(monday.getDate() + 7);
+
+        const total = expenses
+          .filter((e) => {
+            const eDate = new Date(e.date);
+            return eDate >= monday && eDate < nextMonday;
+          })
+          .reduce((sum, e) => sum + e.amount, 0);
+
+        data.push({ name: `Wk ${mondayStr}`, amount: total });
+      }
+    } else if (viewMode === "month") {
+      // Show all months of current year
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), i, 1);
+        const monthStr = d.toLocaleDateString("en-US", { month: "short" });
+
+        const total = expenses
+          .filter((e) => {
+            const eDate = new Date(e.date);
+            return (
+              eDate.getMonth() === i &&
+              eDate.getFullYear() === now.getFullYear()
+            );
+          })
+          .reduce((sum, e) => sum + e.amount, 0);
+
+        data.push({ name: monthStr, amount: total });
+      }
+    } else if (viewMode === "year") {
+      // Show last 5 years
+      for (let i = 4; i >= 0; i--) {
+        const year = now.getFullYear() - i;
+        const total = expenses
+          .filter((e) => new Date(e.date).getFullYear() === year)
+          .reduce((sum, e) => sum + e.amount, 0);
+        data.push({ name: year.toString(), amount: total });
+      }
+    }
+
+    return data;
+  }, [expenses, viewMode]);
+
+  const totalSpent = expenses.reduce(
+    (acc: number, curr) => acc + curr.amount,
+    0
+  );
+  const currentMonthTotal = expenses
+    .filter(
+      (e) =>
+        new Date(e.date).getMonth() === new Date().getMonth() &&
+        new Date(e.date).getFullYear() === new Date().getFullYear()
+    )
+    .reduce((acc: number, curr) => acc + curr.amount, 0);
+
+  const logo = (
+    <>
+      <div className="h-8 w-8 rounded-lg flex items-center justify-center">
+        <img src="/logo.svg" alt="ExpenseTracker Logo" className="h-6 w-6" />
+      </div>
+      ExpenseTracker
+    </>
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-slate-50 text-slate-950 font-sans pb-20">
+      <Header
+        left={logo}
+        fileInputRef={fileInputRef}
+        onExport={exportToCSV}
+        onImportChange={handleImport}
+        onAdd={openAddModal}
+      />
+
+      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-900">
+                <Coins size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  Total Spent (All Time)
+                </p>
+                <h3 className="text-2xl font-bold">
+                  {formatCurrency(totalSpent)}
+                </h3>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <Calendar size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">This Month</p>
+                <h3 className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(currentMonthTotal)}
+                </h3>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <TrendingDown size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  Transaction Count
+                </p>
+                <h3 className="text-2xl font-bold text-emerald-600">
+                  {expenses.length}
+                </h3>
+              </div>
+            </div>
+          </Card>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Chart Section */}
+        <Card className="p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">Spending Overview</h2>
+              <p className="text-sm text-slate-500">
+                Visualize your expenses over time
+              </p>
+            </div>
+            <div className="flex rounded-lg bg-slate-100 p-1">
+              {(["day", "week", "month", "year"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-all ${
+                    viewMode === mode
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#e2e8f0"
+                />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  tickFormatter={(val) => `₱${val}`}
+                />
+                <Tooltip
+                  cursor={{ fill: "#f1f5f9" }}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  }}
+                />
+                <Bar
+                  dataKey="amount"
+                  fill="#0f172a"
+                  radius={[4, 4, 0, 0]}
+                  barSize={40}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Recent Transactions */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-end">
+            <h2 className="text-lg font-semibold">Recent Transactions</h2>
+            <Link
+              href="/transactions"
+              className="text-gray-500 text-sm hover:underline"
+            >
+              View All
+            </Link>
+          </div>
+          <TransactionList
+            expenses={expenses}
+            onEdit={openEditModal}
+            onDelete={deleteExpense}
+            limit={5}
+          />
+          {expenses.length > 5 && (
+            <div className="text-center pt-4">
+              <Link
+                href="/transactions"
+                className="text-blue-600 hover:underline"
+              >
+                See all
+              </Link>
+            </div>
+          )}
         </div>
       </main>
+
+      <ExpenseModal
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+        isEditing={isEditing}
+        newAmount={newAmount}
+        setNewAmount={setNewAmount}
+        newCategory={newCategory}
+        setNewCategory={setNewCategory}
+        newNote={newNote}
+        setNewNote={setNewNote}
+        newDate={newDate}
+        setNewDate={setNewDate}
+        handleSubmit={handleSubmit}
+      />
     </div>
   );
 }
