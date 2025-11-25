@@ -33,42 +33,48 @@ export function TransactionList({
         return (
           <Card
             key={expense.id}
-            className="p-4 flex items-center justify-between group hover:shadow-md transition-all"
+            className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 group hover:shadow-md transition-all"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
               <div
-                className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-sm"
                 style={{ backgroundColor: category.color }}
               >
                 {category.name.charAt(0)}
               </div>
-              <div>
-                <p className="font-medium text-slate-900">{expense.note}</p>
+              <div className="min-w-0">
+                <p className="font-medium text-slate-900 truncate">
+                  {expense.note}
+                </p>
                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="capitalize text-slate-600 font-medium">
+                  <span className="capitalize text-slate-600 font-medium truncate">
                     {category.name}
                   </span>
                   <span>•</span>
-                  <span>{new Date(expense.date).toLocaleDateString()}</span>
+                  <span className="whitespace-nowrap">
+                    {new Date(expense.date).toLocaleDateString("en-US")}
+                  </span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between sm:justify-end gap-4 pl-13 sm:pl-0">
               <span className="font-bold text-slate-900">
                 -{formatCurrency(expense.amount)}
               </span>
-              <button
-                onClick={() => onEdit(expense)}
-                className="text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Edit size={16} />
-              </button>
-              <button
-                onClick={() => onDelete(expense.id)}
-                className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onEdit(expense)}
+                  className="text-slate-400 hover:text-blue-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => onDelete(expense.id)}
+                  className="text-slate-400 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           </Card>
         );

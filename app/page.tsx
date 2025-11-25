@@ -25,9 +25,7 @@ import {
 import { useExpenses } from "./hooks/useExpenses";
 
 export default function App() {
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "year">(
-    "week"
-  );
+  const [viewMode, setViewMode] = useState<"week" | "month" | "year">("week");
 
   const {
     expenses,
@@ -58,8 +56,8 @@ export default function App() {
     const startOfDay = (d: Date): Date =>
       new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-    if (viewMode === "day") {
-      // Show last 7 days
+    if (viewMode === "week") {
+      // Show last 7 days (formerly "day" view)
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
@@ -73,34 +71,6 @@ export default function App() {
           .reduce((sum, e) => sum + e.amount, 0);
 
         data.push({ name: dayStr, amount: total, fullDate: d });
-      }
-    } else if (viewMode === "week") {
-      // Show last 4 weeks
-      // Simplified: Group by week number implies complex logic, let's do simple 7-day buckets for visual ease or just last 4 weeks relative
-      // Actually, let's just show the last 4 weeks labeled by start date
-      for (let i = 3; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i * 7);
-        // Get Start of week
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-        const monday = new Date(d.setDate(diff));
-        const mondayStr = monday.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-
-        const nextMonday = new Date(monday);
-        nextMonday.setDate(monday.getDate() + 7);
-
-        const total = expenses
-          .filter((e) => {
-            const eDate = new Date(e.date);
-            return eDate >= monday && eDate < nextMonday;
-          })
-          .reduce((sum, e) => sum + e.amount, 0);
-
-        data.push({ name: `Wk ${mondayStr}`, amount: total });
       }
     } else if (viewMode === "month") {
       // Show all months of current year
@@ -146,19 +116,9 @@ export default function App() {
     )
     .reduce((acc: number, curr) => acc + curr.amount, 0);
 
-  const logo = (
-    <>
-      <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-        <img src="/logo.svg" alt="ExpenseTracker Logo" className="h-6 w-6" />
-      </div>
-      ExpenseTracker
-    </>
-  );
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 font-sans pb-20">
       <Header
-        left={logo}
         fileInputRef={fileInputRef}
         onExport={exportToCSV}
         onImportChange={handleImport}
@@ -225,7 +185,7 @@ export default function App() {
               </p>
             </div>
             <div className="flex rounded-lg bg-slate-100 p-1">
-              {(["day", "week", "month", "year"] as const).map((mode) => (
+              {(["week", "month", "year"] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
@@ -298,16 +258,6 @@ export default function App() {
             onDelete={deleteExpense}
             limit={5}
           />
-          {expenses.length > 5 && (
-            <div className="text-center pt-4">
-              <Link
-                href="/transactions"
-                className="text-blue-600 hover:underline"
-              >
-                See all
-              </Link>
-            </div>
-          )}
         </div>
       </main>
 

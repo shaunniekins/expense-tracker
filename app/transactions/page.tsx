@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -36,30 +35,9 @@ export default function TransactionsPage() {
     openEditModal,
   } = useExpenses();
 
-  const back = (
-    <Link
-      href="/"
-      className="flex items-center gap-2 font-bold text-xl text-slate-900 hover:text-slate-700"
-    >
-      <ArrowLeft size={20} />
-      Back to Dashboard
-    </Link>
-  );
-
-  const logo = (
-    <>
-      <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-        <img src="/logo.svg" alt="ExpenseTracker Logo" className="h-6 w-6" />
-      </div>
-      ExpenseTracker
-    </>
-  );
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 font-sans pb-20">
       <Header
-        left={back}
-        center={logo}
         fileInputRef={fileInputRef}
         onExport={exportToCSV}
         onImportChange={handleImport}
@@ -68,7 +46,15 @@ export default function TransactionsPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">All Transactions</h2>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="text-slate-500 hover:text-slate-900 transition-colors"
+            >
+              <ArrowLeft size={24} />
+            </Link>
+            <h2 className="text-lg font-semibold">All Transactions</h2>
+          </div>
           <TransactionList
             expenses={expenses}
             onEdit={openEditModal}

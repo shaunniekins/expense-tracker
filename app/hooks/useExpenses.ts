@@ -4,28 +4,8 @@ import { Expense } from "../types";
 import { DEFAULT_CATEGORIES } from "../constants";
 
 export function useExpenses() {
-  const [expenses, setExpenses] = useState<Expense[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const saved = localStorage.getItem("expenses");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          console.log("Initializing expenses from localStorage:", parsed);
-          return parsed as Expense[];
-        }
-      }
-    } catch (error) {
-      console.error(
-        "Error reading expenses from localStorage during init:",
-        error
-      );
-      try {
-        localStorage.removeItem("expenses");
-      } catch {}
-    }
-    return [];
-  });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -33,21 +13,49 @@ export function useExpenses() {
   const [newAmount, setNewAmount] = useState<string>("");
   const [newCategory, setNewCategory] = useState<string>("food");
   const [newNote, setNewNote] = useState<string>("");
-  const [newDate, setNewDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+  const [newDate, setNewDate] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    setNewDate(new Date().toISOString().split("T")[0]);
+
+    const loadExpenses = () => {
+      try {
+        const saved = localStorage.getItem("expenses");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            console.log("Initializing expenses from localStorage:", parsed);
+            setExpenses(parsed as Expense[]);
+          }
+        }
+      } catch (error) {
+        console.error(
+          "Error reading expenses from localStorage during init:",
+          error
+        );
+        try {
+          localStorage.removeItem("expenses");
+        } catch {}
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+
+    loadExpenses();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
     try {
       console.log("Saving expenses to localStorage:", expenses);
       localStorage.setItem("expenses", JSON.stringify(expenses));
     } catch (error) {
       console.error("Error saving expenses to localStorage:", error);
     }
-  }, [expenses]);
+  }, [expenses, isLoaded]);
 
   const exportToCSV = () => {
     const csv = Papa.unparse(
