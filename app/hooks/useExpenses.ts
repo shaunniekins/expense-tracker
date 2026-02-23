@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useAuth } from "../components/AuthProvider";
 import { Transaction, TransactionType, Account, Category } from "../types";
@@ -26,6 +26,8 @@ export function useExpenses() {
   const [newToAccount, setNewToAccount] = useState<string>("");
   const [newNote, setNewNote] = useState<string>("");
   const [newDate, setNewDate] = useState<string>("");
+
+  const loadedUserIdRef = useRef<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -56,9 +58,12 @@ export function useExpenses() {
     setAccounts(accRes.data || []);
     setCategories(catRes.data || []);
     setLoading(false);
-  }, [user]);
+    loadedUserIdRef.current = user.id;
+  }, [user?.id]);
 
   useEffect(() => {
+    // Skip refetch if data is already loaded for the same user
+    if (loadedUserIdRef.current === user?.id) return;
     fetchData();
   }, [fetchData]);
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Settings, LogOut } from "lucide-react";
+import { Plus, Settings, LogOut, Wallet } from "lucide-react";
 import { Button } from "./Button";
 import Link from "next/link";
 import { TransactionType } from "../types";
@@ -19,12 +19,8 @@ export function Header({ center, onAdd, onSignOut }: HeaderProps) {
             href="/"
             className="flex items-center gap-2 font-semibold md:font-bold md:text-xl text-slate-900 hover:opacity-80 transition-opacity"
           >
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-              <img
-                src="/logo.svg"
-                alt="ExpenseTracker Logo"
-                className="h-6 w-6"
-              />
+            <div className="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white">
+              <Wallet size={18} />
             </div>
             <span className="hidden sm:inline">ExpenseTracker</span>
           </Link>
