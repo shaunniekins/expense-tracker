@@ -18,6 +18,7 @@ export default function TransactionsPage() {
     accounts,
     categories,
     loading,
+    submitting,
     isModalOpen,
     setIsModalOpen,
     isEditing,
@@ -103,6 +104,7 @@ export default function TransactionsPage() {
         accounts={accounts}
         categories={categories}
         handleSubmit={handleSubmit}
+        submitting={submitting}
       />
     </div>
   );

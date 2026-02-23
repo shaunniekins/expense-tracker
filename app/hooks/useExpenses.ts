@@ -10,6 +10,7 @@ export function useExpenses() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const supabase = createClient();
 
@@ -75,52 +76,63 @@ export function useExpenses() {
     e: React.FormEvent<HTMLFormElement>,
   ): Promise<void> => {
     e.preventDefault();
-    if (!newAmount || !user) return;
+    if (!newAmount || !user || submitting) return;
 
-    const transactionData: any = {
-      user_id: user.id,
-      amount: parseFloat(newAmount),
-      type: newType,
-      account_id: newAccount,
-      date: new Date(newDate).toISOString(),
-      note: newNote,
-    };
+    setSubmitting(true);
 
-    if (newType === "transfer") {
-      transactionData.to_account_id = newToAccount;
-      transactionData.category_id = null;
-    } else {
-      transactionData.category_id = newCategory || null;
-    }
+    try {
+      const transactionData: any = {
+        user_id: user.id,
+        amount: parseFloat(newAmount),
+        type: newType,
+        account_id: newAccount,
+        date: new Date(newDate).toISOString(),
+        note: newNote,
+      };
 
-    if (isEditing && editingId) {
-      const { error } = await supabase
-        .from("transactions")
-        .update(transactionData)
-        .eq("id", editingId);
-
-      if (error) {
-        console.error("Error updating transaction:", error);
-        alert("Failed to update transaction: " + error.message);
-        return;
+      if (newType === "transfer") {
+        transactionData.to_account_id = newToAccount;
+        transactionData.category_id = null;
+      } else {
+        transactionData.category_id = newCategory || null;
       }
-    } else {
-      const { error } = await supabase
-        .from("transactions")
-        .insert(transactionData);
 
-      if (error) {
-        console.error("Error adding transaction:", error);
-        alert("Failed to add transaction: " + error.message);
-        return;
+      if (isEditing && editingId) {
+        const { error } = await supabase
+          .from("transactions")
+          .update(transactionData)
+          .eq("id", editingId);
+
+        if (error) {
+          console.error("Error updating transaction:", error);
+          alert("Failed to update transaction: " + error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase
+          .from("transactions")
+          .insert(transactionData);
+
+        if (error) {
+          console.error("Error adding transaction:", error);
+          alert("Failed to add transaction: " + error.message);
+          return;
+        }
       }
-    }
 
-    await fetchData();
-    closeModal();
+      await fetchData();
+      closeModal();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const deleteTransaction = async (id: string): Promise<void> => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this transaction? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
     const { error } = await supabase.from("transactions").delete().eq("id", id);
 
     if (error) {
@@ -169,6 +181,7 @@ export function useExpenses() {
     accounts,
     categories,
     loading,
+    submitting,
     isModalOpen,
     setIsModalOpen,
     isEditing,

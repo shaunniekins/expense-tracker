@@ -44,6 +44,7 @@ export default function App() {
     accounts,
     categories,
     loading,
+    submitting,
     isModalOpen,
     setIsModalOpen,
     isEditing,
@@ -274,9 +275,9 @@ export default function App() {
         </div>
 
         {/* Expenses by Category Area Chart */}
-        {areaChartData.length > 0 && expenseCategories.length > 0 && (
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Expenses by Category</h2>
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Expenses by Category</h2>
+          {areaChartData.length > 0 && expenseCategories.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={areaChartData}>
                 <defs>
@@ -348,8 +349,18 @@ export default function App() {
                 ))}
               </AreaChart>
             </ResponsiveContainer>
-          </Card>
-        )}
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <TrendingDown size={40} className="mb-3 opacity-40" />
+              <p className="text-sm font-medium">
+                No expense data for {selectedMonthName} {selectedYear}
+              </p>
+              <p className="text-xs mt-1">
+                Add expenses to see category breakdown
+              </p>
+            </div>
+          )}
+        </Card>
 
         {/* Recent Transactions */}
         <div className="space-y-4">
@@ -396,6 +407,7 @@ export default function App() {
         accounts={accounts}
         categories={categories}
         handleSubmit={handleSubmit}
+        submitting={submitting}
       />
     </div>
   );

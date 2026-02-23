@@ -7,6 +7,7 @@ interface ExpenseModalProps {
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
   isEditing: boolean;
+  submitting?: boolean;
   newAmount: string;
   setNewAmount: (amount: string) => void;
   newType: TransactionType;
@@ -30,6 +31,7 @@ export function RecordModal({
   isModalOpen,
   setIsModalOpen,
   isEditing,
+  submitting = false,
   newAmount,
   setNewAmount,
   newType,
@@ -203,8 +205,10 @@ export function RecordModal({
             >
               Cancel
             </Button>
-            <Button type="submit" className="w-full">
-              {isEditing ? "Update" : "Add"} Transaction
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting
+                ? "Saving..."
+                : `${isEditing ? "Update" : "Add"} Transaction`}
             </Button>
           </div>
         </form>
