@@ -1,200 +1,193 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import Papa from "papaparse";
-import { Expense } from "../types";
-import { DEFAULT_CATEGORIES } from "../constants";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { createClient } from "../lib/supabaseClient";
+import { useAuth } from "../components/AuthProvider";
+import { Transaction, TransactionType, Account, Category } from "../types";
 
 export function useExpenses() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const supabase = createClient();
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Form State
   const [newAmount, setNewAmount] = useState<string>("");
-  const [newCategory, setNewCategory] = useState<string>("food");
+  const [newType, setNewType] = useState<TransactionType>("expense");
+  const [newCategory, setNewCategory] = useState<string>("");
+  const [newAccount, setNewAccount] = useState<string>("");
+  const [newToAccount, setNewToAccount] = useState<string>("");
   const [newNote, setNewNote] = useState<string>("");
   const [newDate, setNewDate] = useState<string>("");
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+
+    const [txRes, accRes, catRes] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false }),
+      supabase
+        .from("accounts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("categories")
+        .select("*")
+        .or(`user_id.is.null,user_id.eq.${user.id}`),
+    ]);
+
+    if (txRes.error) console.error("Error fetching transactions:", txRes.error);
+    if (accRes.error) console.error("Error fetching accounts:", accRes.error);
+    if (catRes.error) console.error("Error fetching categories:", catRes.error);
+
+    setTransactions(txRes.data || []);
+    setAccounts(accRes.data || []);
+    setCategories(catRes.data || []);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     setNewDate(new Date().toISOString().split("T")[0]);
-
-    const loadExpenses = () => {
-      try {
-        const saved = localStorage.getItem("expenses");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            console.log("Initializing expenses from localStorage:", parsed);
-            setExpenses(parsed as Expense[]);
-          }
-        }
-      } catch (error) {
-        console.error(
-          "Error reading expenses from localStorage during init:",
-          error
-        );
-        try {
-          localStorage.removeItem("expenses");
-        } catch {}
-      } finally {
-        setIsLoaded(true);
-      }
-    };
-
-    loadExpenses();
   }, []);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    try {
-      console.log("Saving expenses to localStorage:", expenses);
-      localStorage.setItem("expenses", JSON.stringify(expenses));
-    } catch (error) {
-      console.error("Error saving expenses to localStorage:", error);
-    }
-  }, [expenses, isLoaded]);
-
-  const exportToCSV = () => {
-    const csv = Papa.unparse(
-      expenses.map((e) => ({
-        amount: e.amount,
-        category: e.category,
-        note: e.note,
-        date: e.date,
-      }))
-    );
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "expenses.csv";
-    link.click();
-  };
-
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      Papa.parse(file, {
-        header: true,
-        complete: (results) => {
-          const newExpenses: Expense[] = (results.data as any[])
-            .map((row) => ({
-              id: Date.now() + Math.random(),
-              amount: parseFloat(row.amount),
-              category: row.category,
-              note: row.note,
-              date: row.date,
-            }))
-            .filter(
-              (e) =>
-                !isNaN(e.amount) &&
-                e.category &&
-                e.note &&
-                e.date &&
-                DEFAULT_CATEGORIES.some((c) => c.id === e.category)
-            );
-          // Check for duplicates based on amount, category, note, date
-          const existingSet = new Set(
-            expenses.map((e) => `${e.amount}-${e.category}-${e.note}-${e.date}`)
-          );
-          const uniqueNew = newExpenses.filter(
-            (ne) =>
-              !existingSet.has(
-                `${ne.amount}-${ne.category}-${ne.note}-${ne.date}`
-              )
-          );
-          setExpenses((prev) => [...uniqueNew, ...prev]);
-          // Reset the file input to allow re-uploading the same file
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
-        },
-      });
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
     e.preventDefault();
-    if (!newAmount) return;
+    if (!newAmount || !user) return;
 
-    if (isEditing && editingExpense) {
-      setExpenses(
-        expenses.map((exp) =>
-          exp.id === editingExpense.id
-            ? {
-                ...exp,
-                amount: parseFloat(newAmount),
-                category: newCategory,
-                note: newNote || "Expense",
-                date: new Date(newDate).toISOString(),
-              }
-            : exp
-        )
-      );
+    const transactionData: any = {
+      user_id: user.id,
+      amount: parseFloat(newAmount),
+      type: newType,
+      account_id: newAccount,
+      date: new Date(newDate).toISOString(),
+      note: newNote,
+    };
+
+    if (newType === "transfer") {
+      transactionData.to_account_id = newToAccount;
+      transactionData.category_id = null;
     } else {
-      const expense: Expense = {
-        id: Date.now(),
-        amount: parseFloat(newAmount),
-        category: newCategory,
-        note: newNote || "Expense",
-        date: new Date(newDate).toISOString(),
-      };
-      setExpenses([expense, ...expenses]);
+      transactionData.category_id = newCategory || null;
     }
 
-    setNewAmount("");
-    setNewNote("");
-    setIsModalOpen(false);
-    setIsEditing(false);
-    setEditingExpense(null);
+    if (isEditing && editingId) {
+      const { error } = await supabase
+        .from("transactions")
+        .update(transactionData)
+        .eq("id", editingId);
+
+      if (error) {
+        console.error("Error updating transaction:", error);
+        alert("Failed to update transaction: " + error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("transactions")
+        .insert(transactionData);
+
+      if (error) {
+        console.error("Error adding transaction:", error);
+        alert("Failed to add transaction: " + error.message);
+        return;
+      }
+    }
+
+    await fetchData();
+    closeModal();
   };
 
-  const deleteExpense = (id: number): void => {
-    setExpenses(expenses.filter((e) => e.id !== id));
+  const deleteTransaction = async (id: string): Promise<void> => {
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
+
+    if (error) {
+      console.error("Error deleting transaction:", error);
+      alert("Failed to delete transaction: " + error.message);
+      return;
+    }
+
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const openAddModal = () => {
-    setEditingExpense(null);
+  const openAddModal = (type: TransactionType = "expense") => {
+    setEditingId(null);
     setNewAmount("");
-    setNewCategory("food");
+    setNewType(type);
+    setNewCategory(categories.find((c) => c.applies_to !== "income")?.id || "");
+    setNewAccount(accounts[0]?.id || "");
+    setNewToAccount("");
     setNewNote("");
     setNewDate(new Date().toISOString().split("T")[0]);
     setIsEditing(false);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (expense: Expense) => {
-    setEditingExpense(expense);
-    setNewAmount(expense.amount.toString());
-    setNewCategory(expense.category);
-    setNewNote(expense.note);
-    setNewDate(new Date(expense.date).toISOString().split("T")[0]);
+  const openEditModal = (transaction: Transaction) => {
+    setEditingId(transaction.id);
+    setNewAmount(Number(transaction.amount).toString());
+    setNewType(transaction.type);
+    setNewCategory(transaction.category_id || "");
+    setNewAccount(transaction.account_id);
+    setNewToAccount(transaction.to_account_id || "");
+    setNewNote(transaction.note);
+    setNewDate(new Date(transaction.date).toISOString().split("T")[0]);
     setIsEditing(true);
     setIsModalOpen(true);
   };
 
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setIsEditing(false);
+    setEditingId(null);
+  };
+
   return {
-    expenses,
+    transactions,
+    accounts,
+    categories,
+    loading,
     isModalOpen,
     setIsModalOpen,
     isEditing,
-    editingExpense,
+
+    // Form Values
     newAmount,
     setNewAmount,
+    newType,
+    setNewType,
     newCategory,
     setNewCategory,
+    newAccount,
+    setNewAccount,
+    newToAccount,
+    setNewToAccount,
     newNote,
     setNewNote,
     newDate,
     setNewDate,
-    fileInputRef,
-    exportToCSV,
-    handleImport,
+
     handleSubmit,
-    deleteExpense,
+    deleteTransaction,
     openAddModal,
     openEditModal,
+    refetch: fetchData,
   };
 }

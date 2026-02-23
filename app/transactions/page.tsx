@@ -2,47 +2,64 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import {
-  Card,
-  Button,
-  ExpenseModal,
-  TransactionList,
-  Header,
-} from "../components";
+import { TransactionList, Header } from "../components";
+import { useAuth } from "../components/AuthProvider";
 import { useExpenses } from "../hooks/useExpenses";
+import { RecordModal } from "../components/RecordModal";
 
 export default function TransactionsPage() {
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+
   const {
-    expenses,
+    transactions,
+    accounts,
+    categories,
+    loading,
     isModalOpen,
     setIsModalOpen,
     isEditing,
     newAmount,
     setNewAmount,
+    newType,
+    setNewType,
     newCategory,
     setNewCategory,
+    newAccount,
+    setNewAccount,
+    newToAccount,
+    setNewToAccount,
     newNote,
     setNewNote,
     newDate,
     setNewDate,
-    fileInputRef,
-    exportToCSV,
-    handleImport,
     handleSubmit,
-    deleteExpense,
+    deleteTransaction,
     openAddModal,
     openEditModal,
   } = useExpenses();
 
+  if (!user) {
+    router.push("/login");
+    return null;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-800" />
+          <p className="text-sm text-slate-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 font-sans pb-20">
-      <Header
-        fileInputRef={fileInputRef}
-        onExport={exportToCSV}
-        onImportChange={handleImport}
-        onAdd={openAddModal}
-      />
+      <Header onAdd={openAddModal} onSignOut={signOut} />
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <div className="space-y-4">
@@ -56,25 +73,35 @@ export default function TransactionsPage() {
             <h2 className="text-lg font-semibold">All Transactions</h2>
           </div>
           <TransactionList
-            expenses={expenses}
+            transactions={transactions}
+            accounts={accounts}
+            categories={categories}
             onEdit={openEditModal}
-            onDelete={deleteExpense}
+            onDelete={deleteTransaction}
           />
         </div>
       </main>
 
-      <ExpenseModal
+      <RecordModal
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
         isEditing={isEditing}
         newAmount={newAmount}
         setNewAmount={setNewAmount}
+        newType={newType}
+        setNewType={setNewType}
         newCategory={newCategory}
         setNewCategory={setNewCategory}
+        newAccount={newAccount}
+        setNewAccount={setNewAccount}
+        newToAccount={newToAccount}
+        setNewToAccount={setNewToAccount}
         newNote={newNote}
         setNewNote={setNewNote}
         newDate={newDate}
         setNewDate={setNewDate}
+        accounts={accounts}
+        categories={categories}
         handleSubmit={handleSubmit}
       />
     </div>

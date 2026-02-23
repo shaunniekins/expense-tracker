@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { TrendingDown, Calendar, Coins } from "lucide-react";
+import { TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -10,120 +10,152 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { ChartDataPoint } from "./types";
+import { ChartDataPoint, Transaction } from "./types";
 import { formatCurrency } from "./utils";
-import {
-  Card,
-  Button,
-  ExpenseModal,
-  TransactionList,
-  Header,
-} from "./components";
+import { Card, Button, TransactionList, Header } from "./components";
+import { useAuth } from "./components/AuthProvider";
 import { useExpenses } from "./hooks/useExpenses";
+import { RecordModal } from "./components/RecordModal";
 
 export default function App() {
+  const { user, signOut } = useAuth();
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<"week" | "month" | "year">("week");
 
   const {
-    expenses,
+    transactions,
+    accounts,
+    categories,
+    loading,
     isModalOpen,
     setIsModalOpen,
     isEditing,
     newAmount,
     setNewAmount,
+    newType,
+    setNewType,
     newCategory,
     setNewCategory,
+    newAccount,
+    setNewAccount,
+    newToAccount,
+    setNewToAccount,
     newNote,
     setNewNote,
     newDate,
     setNewDate,
-    fileInputRef,
-    exportToCSV,
-    handleImport,
     handleSubmit,
-    deleteExpense,
+    deleteTransaction,
     openAddModal,
     openEditModal,
   } = useExpenses();
 
-  const chartData: ChartDataPoint[] = useMemo(() => {
+  // Redirect to login if not authenticated
+  if (!user) {
+    router.push("/login");
+    return null;
+  }
+
+  const chartData: ChartDataPoint[] = (() => {
     const now = new Date();
     let data: ChartDataPoint[] = [];
 
     const startOfDay = (d: Date): Date =>
       new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+    const getTotals = (filteredTransactions: Transaction[]) => {
+      const income = filteredTransactions
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const expense = filteredTransactions
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      return { income, expense };
+    };
+
     if (viewMode === "week") {
-      // Show last 7 days (formerly "day" view)
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
         const dayStr = d.toLocaleDateString("en-US", { weekday: "short" });
 
-        const total = expenses
-          .filter(
-            (e) =>
-              startOfDay(new Date(e.date)).getTime() === startOfDay(d).getTime()
-          )
-          .reduce((sum, e) => sum + e.amount, 0);
+        const daysTransactions = transactions.filter(
+          (e) =>
+            startOfDay(new Date(e.date)).getTime() === startOfDay(d).getTime(),
+        );
+        const { income, expense } = getTotals(daysTransactions);
 
-        data.push({ name: dayStr, amount: total, fullDate: d });
+        data.push({ name: dayStr, income, expense, fullDate: d });
       }
     } else if (viewMode === "month") {
-      // Show all months of current year
       for (let i = 0; i < 12; i++) {
         const d = new Date(now.getFullYear(), i, 1);
         const monthStr = d.toLocaleDateString("en-US", { month: "short" });
 
-        const total = expenses
-          .filter((e) => {
-            const eDate = new Date(e.date);
-            return (
-              eDate.getMonth() === i &&
-              eDate.getFullYear() === now.getFullYear()
-            );
-          })
-          .reduce((sum, e) => sum + e.amount, 0);
+        const monthsTransactions = transactions.filter((e) => {
+          const eDate = new Date(e.date);
+          return (
+            eDate.getMonth() === i && eDate.getFullYear() === now.getFullYear()
+          );
+        });
+        const { income, expense } = getTotals(monthsTransactions);
 
-        data.push({ name: monthStr, amount: total });
+        data.push({ name: monthStr, income, expense });
       }
     } else if (viewMode === "year") {
-      // Show last 5 years
       for (let i = 4; i >= 0; i--) {
         const year = now.getFullYear() - i;
-        const total = expenses
-          .filter((e) => new Date(e.date).getFullYear() === year)
-          .reduce((sum, e) => sum + e.amount, 0);
-        data.push({ name: year.toString(), amount: total });
+        const yearsTransactions = transactions.filter(
+          (e) => new Date(e.date).getFullYear() === year,
+        );
+        const { income, expense } = getTotals(yearsTransactions);
+
+        data.push({ name: year.toString(), income, expense });
       }
     }
 
     return data;
-  }, [expenses, viewMode]);
+  })();
 
-  const totalSpent = expenses.reduce(
-    (acc: number, curr) => acc + curr.amount,
-    0
+  const totalBalance = transactions.reduce((acc, curr) => {
+    if (curr.type === "income") return acc + Number(curr.amount);
+    if (curr.type === "expense") return acc - Number(curr.amount);
+    return acc;
+  }, 0);
+
+  const currentMonthTransactions = transactions.filter(
+    (e) =>
+      new Date(e.date).getMonth() === new Date().getMonth() &&
+      new Date(e.date).getFullYear() === new Date().getFullYear(),
   );
-  const currentMonthTotal = expenses
-    .filter(
-      (e) =>
-        new Date(e.date).getMonth() === new Date().getMonth() &&
-        new Date(e.date).getFullYear() === new Date().getFullYear()
-    )
-    .reduce((acc: number, curr) => acc + curr.amount, 0);
+
+  const currentMonthExpense = currentMonthTransactions
+    .filter((t) => t.type === "expense")
+    .reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+  const currentMonthIncome = currentMonthTransactions
+    .filter((t) => t.type === "income")
+    .reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-800" />
+          <p className="text-sm text-slate-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 font-sans pb-20">
-      <Header
-        fileInputRef={fileInputRef}
-        onExport={exportToCSV}
-        onImportChange={handleImport}
-        onAdd={openAddModal}
-      />
+      <Header onAdd={openAddModal} onSignOut={signOut} />
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Summary Cards */}
@@ -131,14 +163,18 @@ export default function App() {
           <Card className="p-6">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-900">
-                <Coins size={24} />
+                <Wallet size={24} />
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-500">
-                  Total Spent (All Time)
+                  Total Balance
                 </p>
-                <h3 className="text-2xl font-bold">
-                  {formatCurrency(totalSpent)}
+                <h3
+                  className={`text-2xl font-bold ${
+                    totalBalance >= 0 ? "text-slate-900" : "text-red-600"
+                  }`}
+                >
+                  {formatCurrency(totalBalance)}
                 </h3>
               </div>
             </div>
@@ -147,12 +183,14 @@ export default function App() {
           <Card className="p-6">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                <Calendar size={24} />
+                <TrendingDown size={24} />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-500">This Month</p>
+                <p className="text-sm font-medium text-slate-500">
+                  Month Expenses
+                </p>
                 <h3 className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(currentMonthTotal)}
+                  {formatCurrency(currentMonthExpense)}
                 </h3>
               </div>
             </div>
@@ -161,85 +199,19 @@ export default function App() {
           <Card className="p-6">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                <TrendingDown size={24} />
+                <TrendingUp size={24} />
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-500">
-                  Transaction Count
+                  Month Income
                 </p>
                 <h3 className="text-2xl font-bold text-emerald-600">
-                  {expenses.length}
+                  {formatCurrency(currentMonthIncome)}
                 </h3>
               </div>
             </div>
           </Card>
         </div>
-
-        {/* Chart Section */}
-        <Card className="p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">Spending Overview</h2>
-              <p className="text-sm text-slate-500">
-                Visualize your expenses over time
-              </p>
-            </div>
-            <div className="flex rounded-lg bg-slate-100 p-1">
-              {(["week", "month", "year"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-all ${
-                    viewMode === mode
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-900"
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#e2e8f0"
-                />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }}
-                  tickFormatter={(val) => `₱${val}`}
-                />
-                <Tooltip
-                  cursor={{ fill: "#f1f5f9" }}
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "none",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                  }}
-                />
-                <Bar
-                  dataKey="amount"
-                  fill="#0f172a"
-                  radius={[4, 4, 0, 0]}
-                  barSize={40}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
 
         {/* Recent Transactions */}
         <div className="space-y-4">
@@ -253,26 +225,36 @@ export default function App() {
             </Link>
           </div>
           <TransactionList
-            expenses={expenses}
+            transactions={transactions}
+            accounts={accounts}
+            categories={categories}
             onEdit={openEditModal}
-            onDelete={deleteExpense}
+            onDelete={deleteTransaction}
             limit={5}
           />
         </div>
       </main>
 
-      <ExpenseModal
+      <RecordModal
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
         isEditing={isEditing}
         newAmount={newAmount}
         setNewAmount={setNewAmount}
+        newType={newType}
+        setNewType={setNewType}
         newCategory={newCategory}
         setNewCategory={setNewCategory}
+        newAccount={newAccount}
+        setNewAccount={setNewAccount}
+        newToAccount={newToAccount}
+        setNewToAccount={setNewToAccount}
         newNote={newNote}
         setNewNote={setNewNote}
         newDate={newDate}
         setNewDate={setNewDate}
+        accounts={accounts}
+        categories={categories}
         handleSubmit={handleSubmit}
       />
     </div>
