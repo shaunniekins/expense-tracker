@@ -52,13 +52,8 @@ export function RecordModal({
 }: ExpenseModalProps) {
   if (!isModalOpen) return null;
 
-  // Filter categories based on transaction type
-  const filteredCategories =
-    newType === "transfer"
-      ? []
-      : categories.filter(
-          (c) => c.applies_to === "both" || c.applies_to === newType,
-        );
+  // All categories are available for income/expense, none for transfer
+  const availableCategories = newType === "transfer" ? [] : categories;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -88,14 +83,11 @@ export function RecordModal({
                   if (type === "transfer") {
                     setNewCategory("");
                   } else {
-                    const available = categories.filter(
-                      (c) => c.applies_to === "both" || c.applies_to === type,
-                    );
                     if (
-                      available.length > 0 &&
-                      !available.find((c) => c.id === newCategory)
+                      categories.length > 0 &&
+                      !categories.find((c) => c.id === newCategory)
                     ) {
-                      setNewCategory(available[0].id);
+                      setNewCategory(categories[0].id);
                     }
                   }
                 }}
@@ -163,8 +155,7 @@ export function RecordModal({
                 onChange={(e) => setNewCategory(e.target.value)}
                 className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
               >
-                <option value="">Select category...</option>
-                {filteredCategories.map((c) => (
+                {availableCategories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>

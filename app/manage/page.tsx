@@ -19,7 +19,6 @@ import { useAuth } from "../components/AuthProvider";
 import { useAccounts } from "../hooks/useAccounts";
 import { useCategories } from "../hooks/useCategories";
 import { Button, Card, Input, IconSelector } from "../components";
-import { AccountType, CategoryScope } from "../types";
 
 function getIconComponent(iconName: string): React.ElementType | null {
   const icons = LucideIcons as unknown as Record<string, React.ElementType>;
@@ -88,10 +87,8 @@ function AccountsTab() {
   } = useAccounts();
 
   const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState<AccountType>("bank");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [editType, setEditType] = useState<AccountType>("bank");
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [loadingBalances, setLoadingBalances] = useState(false);
 
@@ -112,14 +109,13 @@ function AccountsTab() {
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
-    await addAccount(newName.trim(), newType);
+    await addAccount(newName.trim());
     setNewName("");
-    setNewType("bank");
   };
 
   const handleSaveEdit = async () => {
     if (!editingId || !editName.trim()) return;
-    await editAccount(editingId, { name: editName.trim(), type: editType });
+    await editAccount(editingId, { name: editName.trim() });
     setEditingId(null);
   };
 
@@ -174,15 +170,6 @@ function AccountsTab() {
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           />
-          <select
-            value={newType}
-            onChange={(e) => setNewType(e.target.value as AccountType)}
-            className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
-          >
-            <option value="cash">Cash</option>
-            <option value="bank">Bank</option>
-            <option value="wallet">Wallet</option>
-          </select>
           <Button onClick={handleAdd}>
             <Plus size={16} className="mr-1" /> Add
           </Button>
@@ -205,15 +192,6 @@ function AccountsTab() {
                     className="flex-1"
                     autoFocus
                   />
-                  <select
-                    value={editType}
-                    onChange={(e) => setEditType(e.target.value as AccountType)}
-                    className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
-                  >
-                    <option value="cash">Cash</option>
-                    <option value="bank">Bank</option>
-                    <option value="wallet">Wallet</option>
-                  </select>
                   <button
                     onClick={handleSaveEdit}
                     className="p-2 text-green-600 hover:text-green-700"
@@ -253,9 +231,6 @@ function AccountsTab() {
                       {account.name}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span className="capitalize px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">
-                        {account.type}
-                      </span>
                       {loadingBalances ? (
                         <span>Loading...</span>
                       ) : balance !== undefined ? (
@@ -276,7 +251,6 @@ function AccountsTab() {
                       onClick={() => {
                         setEditingId(account.id);
                         setEditName(account.name);
-                        setEditType(account.type);
                       }}
                       className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
                     >
@@ -326,12 +300,10 @@ function CategoriesTab() {
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#64748b");
   const [newIcon, setNewIcon] = useState("MoreHorizontal");
-  const [newAppliesTo, setNewAppliesTo] = useState<CategoryScope>("both");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
   const [editIcon, setEditIcon] = useState("");
-  const [editAppliesTo, setEditAppliesTo] = useState<CategoryScope>("both");
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -339,12 +311,10 @@ function CategoriesTab() {
       name: newName.trim(),
       color: newColor,
       icon: newIcon,
-      applies_to: newAppliesTo,
     });
     setNewName("");
     setNewColor("#64748b");
     setNewIcon("MoreHorizontal");
-    setNewAppliesTo("both");
   };
 
   const handleSaveEdit = async () => {
@@ -353,7 +323,6 @@ function CategoriesTab() {
       name: editName.trim(),
       color: editColor,
       icon: editIcon,
-      applies_to: editAppliesTo,
     });
     setEditingId(null);
   };
@@ -365,17 +334,6 @@ function CategoriesTab() {
       )
     ) {
       await deleteCategory(id);
-    }
-  };
-
-  const appliesToBadgeColor = (scope: CategoryScope) => {
-    switch (scope) {
-      case "expense":
-        return "bg-red-100 text-red-700";
-      case "income":
-        return "bg-emerald-100 text-emerald-700";
-      default:
-        return "bg-blue-100 text-blue-700";
     }
   };
 
@@ -412,15 +370,6 @@ function CategoriesTab() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <IconSelector value={newIcon} onChange={setNewIcon} />
-            <select
-              value={newAppliesTo}
-              onChange={(e) => setNewAppliesTo(e.target.value as CategoryScope)}
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
-            >
-              <option value="both">Both</option>
-              <option value="expense">Expense only</option>
-              <option value="income">Income only</option>
-            </select>
             <Button onClick={handleAdd} className="ml-auto">
               <Plus size={16} className="mr-1" /> Add
             </Button>
@@ -458,17 +407,6 @@ function CategoriesTab() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <IconSelector value={editIcon} onChange={setEditIcon} />
-                    <select
-                      value={editAppliesTo}
-                      onChange={(e) =>
-                        setEditAppliesTo(e.target.value as CategoryScope)
-                      }
-                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
-                    >
-                      <option value="both">Both</option>
-                      <option value="expense">Expense only</option>
-                      <option value="income">Income only</option>
-                    </select>
                     <div className="flex gap-1 ml-auto">
                       <button
                         onClick={handleSaveEdit}
@@ -505,17 +443,6 @@ function CategoriesTab() {
                       {cat.name}
                     </p>
                     <div className="flex items-center gap-2 text-xs">
-                      <span
-                        className={`px-1.5 py-0.5 rounded capitalize ${appliesToBadgeColor(
-                          cat.applies_to,
-                        )}`}
-                      >
-                        {cat.applies_to === "both"
-                          ? "Both"
-                          : cat.applies_to === "expense"
-                            ? "Expense"
-                            : "Income"}
-                      </span>
                       {isSystem && (
                         <span className="text-slate-400 italic">System</span>
                       )}
@@ -531,7 +458,6 @@ function CategoriesTab() {
                           setEditName(cat.name);
                           setEditColor(cat.color);
                           setEditIcon(cat.icon);
-                          setEditAppliesTo(cat.applies_to);
                         }}
                         className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
                       >

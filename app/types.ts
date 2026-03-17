@@ -1,8 +1,6 @@
 // Updated types to match Supabase schema
 
-export type CategoryScope = "both" | "expense" | "income";
 export type TransactionType = "expense" | "income" | "transfer";
-export type AccountType = "cash" | "bank" | "wallet";
 
 export interface Category {
   id: string;
@@ -10,7 +8,6 @@ export interface Category {
   name: string;
   color: string;
   icon: string; // Lucide icon name
-  applies_to: CategoryScope;
   created_at?: string;
 }
 
@@ -18,7 +15,6 @@ export interface Account {
   id: string;
   user_id: string;
   name: string;
-  type: AccountType;
   sort_order: number;
   created_at?: string;
 }

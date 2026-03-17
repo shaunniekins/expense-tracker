@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useAuth } from "../components/AuthProvider";
-import { Account, AccountType } from "../types";
+import { Account } from "../types";
 
 export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -34,7 +34,6 @@ export function useAccounts() {
 
   const addAccount = async (
     name: string,
-    type: AccountType = "bank",
   ): Promise<Account | null> => {
     if (!user) return null;
     const maxOrder =
@@ -45,7 +44,6 @@ export function useAccounts() {
       .insert({
         user_id: user.id,
         name,
-        type,
         sort_order: maxOrder + 1,
       })
       .select()
@@ -63,7 +61,7 @@ export function useAccounts() {
 
   const editAccount = async (
     id: string,
-    updates: Partial<Pick<Account, "name" | "type">>,
+    updates: Partial<Pick<Account, "name">>,
   ) => {
     const { error } = await supabase
       .from("accounts")
@@ -196,13 +194,12 @@ export function useAccounts() {
   };
 
   const updateSortOrder = async (orderedIds: string[]) => {
-    const updates = orderedIds.map((id, index) => ({
-      id,
-      sort_order: index,
-      user_id: user!.id,
-    }));
+    const promises = orderedIds.map((id, index) =>
+      supabase.from("accounts").update({ sort_order: index }).eq("id", id),
+    );
 
-    const { error } = await supabase.from("accounts").upsert(updates);
+    const results = await Promise.all(promises);
+    const error = results.find((r) => r.error)?.error;
 
     if (error) {
       console.error("Error updating sort order:", error);

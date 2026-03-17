@@ -19,7 +19,6 @@ CREATE TABLE accounts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  type account_type NOT NULL DEFAULT 'bank',
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -51,7 +50,6 @@ CREATE TABLE categories (
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#64748b',
   icon TEXT NOT NULL DEFAULT 'MoreHorizontal',
-  applies_to category_scope NOT NULL DEFAULT 'both',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

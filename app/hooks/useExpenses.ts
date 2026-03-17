@@ -148,7 +148,7 @@ export function useExpenses() {
     setEditingId(null);
     setNewAmount("");
     setNewType(type);
-    setNewCategory(categories.find((c) => c.applies_to !== "income")?.id || "");
+    setNewCategory(categories[0]?.id || "");
     setNewAccount(accounts[0]?.id || "");
     setNewToAccount("");
     setNewNote("");

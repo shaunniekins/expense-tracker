@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useAuth } from "../components/AuthProvider";
-import { Category, CategoryScope, TransactionType } from "../types";
+import { Category, TransactionType } from "../types";
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -35,7 +35,7 @@ export function useCategories() {
   }, [fetchCategories]);
 
   const addCategory = async (
-    category: Pick<Category, "name" | "color" | "icon" | "applies_to">,
+    category: Pick<Category, "name" | "color" | "icon">,
   ): Promise<Category | null> => {
     if (!user) return null;
 
@@ -60,7 +60,7 @@ export function useCategories() {
 
   const editCategory = async (
     id: string,
-    updates: Partial<Pick<Category, "name" | "color" | "icon" | "applies_to">>,
+    updates: Partial<Pick<Category, "name" | "color" | "icon">>,
   ) => {
     // Only allow editing user-created categories
     const cat = categories.find((c) => c.id === id);
@@ -104,13 +104,10 @@ export function useCategories() {
     return true;
   };
 
-  // Get categories filtered by transaction type
   const getFilteredCategories = useCallback(
     (type: TransactionType): Category[] => {
       if (type === "transfer") return [];
-      return categories.filter(
-        (c) => c.applies_to === "both" || c.applies_to === type,
-      );
+      return categories;
     },
     [categories],
   );
